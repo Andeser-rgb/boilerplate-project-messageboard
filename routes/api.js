@@ -13,13 +13,7 @@ module.exports = function(app) {
         bumped_on: Date,
         reported: Boolean,
         delete_password: String,
-        replies: [{
-            _id: mongoose.ObjectId,
-            text: String,
-            created_on: Date,
-            delete_password: String,
-            reported: Boolean
-        }]
+        replies: [{}]
     });
 
     const Message = mongoose.model('Messageboard', MessageSchema);
@@ -32,6 +26,7 @@ module.exports = function(app) {
                 text,
                 delete_password
             } = req.body;
+          if(board === undefined) board = 'general';
 
             const newMessage = new Message({
                 text: text,
@@ -39,11 +34,28 @@ module.exports = function(app) {
                 created_on: new Date(),
                 bumped_on: new Date(),
                 reported: false,
-                delete_password: delete_password
+                delete_password: delete_password,
+                replies: []
             });
             newMessage.save();
             res.redirect('/b/' + board);
+        })
+    .get((req, res) => {
+      const { board } = req.params;
+      console.log(board);
+
+      Message.find({ board: board }, (err, data) => {
+        if(err) throw err;
+        data = data.sort((a, b) => a.bumped_on - b.bumped_on);
+        data = data.map((d, i) => {
+          if(d.replies !== [])
+            d.replies = d.replies.sort((a, b) => a.created_on - b.created_on).slice(0, 3);
+          return d;
         });
+        console.log(data);
+        res.send(data);
+      })
+    });
 
     app.route('/api/replies/:board')
       .post((req, res) => {
@@ -53,8 +65,12 @@ module.exports = function(app) {
                 delete_password,
                 thread_id
             } = req.body;
+          if (board === undefined) board = 'general';
 
-            Message.findByIdAndUpdate(thread_id, (err, doc) => {
+            Message.findOneAndUpdate({
+              _id: thread_id,
+              board: board
+            }, (err, doc) => {
                 if (err) throw err;
                 doc.bumped_on = new Date();
                 doc.replies.push({
