@@ -13,10 +13,18 @@ module.exports = function(app) {
         bumped_on: Date,
         reported: Boolean,
         delete_password: String,
-        replies: [{}]
+        replies: [{type: mongoose.Schema.Types.ObjectId, ref: 'Reply'}]
+    });
+
+    const ReplySchema = mongoose.Schema({
+        text: String,
+        created_on: Date,
+        delete_password: String,
+        reported: Boolean
     });
 
     const Message = mongoose.model('Messageboard', MessageSchema);
+    const Reply = mongoose.model('Reply', ReplySchema);
 
 
     app.route('/api/threads/:board')
@@ -44,39 +52,26 @@ module.exports = function(app) {
             const {
                 board
             } = req.params;
-            const {
-                thread_id
-            } = req.query;
 
-            if (thread_id === undefined)
-                Message.find({
-                    board: board
-                }, (err, data) => {
-                    if (err) throw err;
-                    data = data
-                        .sort((a, b) => a.bumped_on - b.bumped_on)
-                        .map((d, i) => {
-                            let dCopy = d.toObject();
-                            if (dCopy.replies !== [])
-                                dCopy.replies = dCopy.replies
-                                .sort((a, b) => a.created_on - b.created_on).slice(0, 3);
-                            delete dCopy.reported;
-                            delete dCopy.delete_password;
-                            return dCopy;
-                        });
-                    res.send(data);
-                });
-            else
-                Message.findOne({
-                    board: board,
-                    thread_id: thread_id
-                }, (err, data) => {
-                    if (err) throw err;
-                    let dataCopy = data.toObject();
-                    delete dataCopy.reported;
-                    delete dataCopy.delete_password;
-                    res.send(dataCopy);
-                });
+            Message.find({
+                board: board
+            }).
+            populate('replies').
+            exec((err, data) => {
+                if (err) throw err;
+                data = data
+                    .sort((a, b) => a.bumped_on - b.bumped_on)
+                    .map((d, i) => {
+                        let dCopy = d.toObject();
+                        if (dCopy.replies !== [])
+                            dCopy.replies = dCopy.replies
+                            .sort((a, b) => a.created_on - b.created_on).slice(0, 3);
+                        delete dCopy.reported;
+                        delete dCopy.delete_password;
+                        return dCopy;
+                    });
+                res.send(data);
+            });
         })
         .delete((req, res) => {
             const {
@@ -97,6 +92,22 @@ module.exports = function(app) {
                         board: board,
                         thread_id: thread_id
                     });
+                res.send('success');
+            });
+        })
+        .put((req, res) => {
+            const {
+                board,
+                thread_id
+            } = req.body;
+
+            Message.findOne({
+                _id: thread_id,
+                board: board
+            }, (err, doc) => {
+                if(err) throw err;
+                doc.reported = true;
+                res.send('success');
             });
         });
 
@@ -110,20 +121,118 @@ module.exports = function(app) {
             } = req.body;
             if (board === undefined) board = 'general';
 
-            Message.findOneAndUpdate({
+
+            Message.findOne({
                 _id: thread_id,
                 board: board
-            }, (err, doc) => {
+            })
+            .exec((err, doc) => {
                 if (err) throw err;
-                doc.bumped_on = new Date();
-                doc.replies.push({
+
+                const reply = new Reply({
                     _id: new mongoose.Types.ObjectId(),
+                    messageId: doc._id,
                     text: text,
                     created_on: new Date(),
                     delete_password: delete_password,
                     reported: false
                 });
+
+                doc.bumped_on = new Date();
+                doc.replies.push(reply._id);
                 doc.save();
+                reply.save();
+
+                res.redirect('/b/' + board);
             });
+
+        })
+        .get((req, res) => {
+            let board = req.params.board;
+            let thread_id = req.query.thread_id;
+
+            Message.findOne({
+                board: board,
+                thread_id: thread_id
+            }).
+            populate('replies').
+            exec((err, data) => {
+                if (err) throw err;
+                let dataCopy = data.toObject();
+                delete dataCopy.reported;
+                delete dataCopy.delete_password;
+                dataCopy.replies = dataCopy.replies.map(d => {
+                    delete d.reported;
+                    delete d.delete_password;
+                    return d;
+                });
+                res.send(dataCopy);
+            });
+        })
+        .delete((req, res) => {
+            let {
+                board,
+                thread_id,
+                reply_id,
+                delete_password
+            } = req.body;
+
+            try{
+                thread_id = mongoose.Types.ObjectId(thread_id);
+                Message.findOne({
+                    _id: thread_id,
+                    board: board
+                }, (err, doc) => {
+                    if (err) throw err;
+                    console.log(doc);
+                    if(doc.replies.indexOf(reply_id) !== -1 && doc !== null)
+                        Reply.findOne({_id: reply_id}, (err, repdoc) => {
+                            if(repdoc.delete_password === delete_password){
+                                repdoc.text = '[deleted]';
+                                repdoc.save();
+                                res.send('success');
+                            }
+                            else
+                                res.send('incorrect password');
+                        });
+                    else
+                        res.send('well well well');
+
+                });
+            }
+            catch (error){
+                res.send('Invalid thread_id');
+            }
+        })
+        .put((req, res) => {
+            let {
+                board,
+                thread_id,
+                reply_id,
+                delete_password
+            } = req.body;
+
+            try{
+                thread_id = mongoose.Types.ObjectId(thread_id);
+                Message.findOne({
+                    _id: thread_id,
+                    board: board
+                }, (err, doc) => {
+                    if (err) throw err;
+                    console.log(doc);
+                    if(doc.replies.indexOf(reply_id) !== -1 && doc !== null)
+                        Reply.findOne({_id: reply_id}, (err, repdoc) => {
+                               repdoc.reported = true;
+                               repdoc.save();
+                               res.send('success');
+                        });
+                    else
+                        res.send('well well well');
+
+                });
+            }
+            catch (error){
+                res.send('invalid id');
+            }
         });
 };
