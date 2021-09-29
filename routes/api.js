@@ -46,7 +46,7 @@ module.exports = function(app) {
                 replies: []
             });
             newMessage.save();
-            res.redirect('/b/' + board);
+            res.redirect('/b/' + board + '/');
         })
         .get((req, res) => {
             const {
@@ -58,7 +58,7 @@ module.exports = function(app) {
             }).
             populate('replies').
             exec((err, data) => {
-                if (err) throw err;
+
                 data = data
                     .sort((a, b) => a.bumped_on - b.bumped_on)
                     .map((d, i) => {
@@ -143,7 +143,7 @@ module.exports = function(app) {
                 doc.save();
                 reply.save();
 
-                res.redirect('/b/' + board);
+                res.redirect('/b/' + board + '/');
             });
 
         })
@@ -184,7 +184,6 @@ module.exports = function(app) {
                     board: board
                 }, (err, doc) => {
                     if (err) throw err;
-                    console.log(doc);
                     if(doc.replies.indexOf(reply_id) !== -1 && doc !== null)
                         Reply.findOne({_id: reply_id}, (err, repdoc) => {
                             if(repdoc.delete_password === delete_password){
@@ -219,7 +218,6 @@ module.exports = function(app) {
                     board: board
                 }, (err, doc) => {
                     if (err) throw err;
-                    console.log(doc);
                     if(doc.replies.indexOf(reply_id) !== -1 && doc !== null)
                         Reply.findOne({_id: reply_id}, (err, repdoc) => {
                                repdoc.reported = true;
