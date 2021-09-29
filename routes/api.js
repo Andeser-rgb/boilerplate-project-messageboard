@@ -21,7 +21,7 @@ module.exports = function(app) {
 
     app.route('/api/threads/:board')
         .post((req, res) => {
-            const {
+            let {
                 board,
                 text,
                 delete_password
@@ -38,6 +38,7 @@ module.exports = function(app) {
                 replies: []
             });
             newMessage.save();
+            res.send(newMessage);
             res.redirect('/b/' + board);
         })
     .get((req, res) => {
