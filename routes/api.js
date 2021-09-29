@@ -77,6 +77,27 @@ module.exports = function(app) {
                     delete dataCopy.delete_password;
                     res.send(dataCopy);
                 });
+        })
+        .delete((req, res) => {
+            const {
+                board,
+                thread_id,
+                delete_password
+            } = req.body;
+
+            Message.findOne({
+                board: board,
+                thread_id: thread_id,
+            }, (err, doc) => {
+                if (err) throw err;
+                if(doc.delete_password != delete_password)
+                    res.send('incorrect password');
+                else
+                    Message.deleteOne({
+                        board: board,
+                        thread_id: thread_id
+                    });
+            });
         });
 
     app.route('/api/replies/:board')
