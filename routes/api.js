@@ -56,12 +56,13 @@ module.exports = function(app) {
                     data = data
                         .sort((a, b) => a.bumped_on - b.bumped_on)
                         .map((d, i) => {
-                            if (d.replies !== [])
-                                d.replies = d.replies
+                            let dCopy = d.toObject();
+                            if (dCopy.replies !== [])
+                                dCopy.replies = dCopy.replies
                                 .sort((a, b) => a.created_on - b.created_on).slice(0, 3);
-                            delete d.reported;
-                            delete d.delete_password;
-                            return d;
+                            delete dCopy.reported;
+                            delete dCopy.delete_password;
+                            return dCopy;
                         });
                     res.send(data);
                 });
@@ -71,9 +72,10 @@ module.exports = function(app) {
                     thread_id: thread_id
                 }, (err, data) => {
                     if (err) throw err;
-                    delete data.reported;
-                    delete data.delete_password;
-                    res.send(data);
+                    let dataCopy = data.toObject();
+                    delete dataCopy.reported;
+                    delete dataCopy.delete_password;
+                    res.send(dataCopy);
                 });
         });
 
