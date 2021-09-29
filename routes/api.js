@@ -26,7 +26,7 @@ module.exports = function(app) {
                 text,
                 delete_password
             } = req.body;
-          if(board === undefined) board = 'general';
+            if (board === undefined) board = 'general';
 
             const newMessage = new Message({
                 text: text,
@@ -38,39 +38,58 @@ module.exports = function(app) {
                 replies: []
             });
             newMessage.save();
-            res.send(newMessage);
             res.redirect('/b/' + board);
         })
-    .get((req, res) => {
-      const { board } = req.params;
-      console.log(board);
+        .get((req, res) => {
+            const {
+                board
+            } = req.params;
+            const {
+                thread_id
+            } = req.query;
 
-      Message.find({ board: board }, (err, data) => {
-        if(err) throw err;
-        data = data.sort((a, b) => a.bumped_on - b.bumped_on);
-        data = data.map((d, i) => {
-          if(d.replies !== [])
-            d.replies = d.replies.sort((a, b) => a.created_on - b.created_on).slice(0, 3);
-          return d;
+            if (thread_id === undefined)
+                Message.find({
+                    board: board
+                }, (err, data) => {
+                    if (err) throw err;
+                    data = data
+                        .sort((a, b) => a.bumped_on - b.bumped_on)
+                        .map((d, i) => {
+                            if (d.replies !== [])
+                                d.replies = d.replies
+                                .sort((a, b) => a.created_on - b.created_on).slice(0, 3);
+                            delete d.reported;
+                            delete d.delete_password;
+                            return d;
+                        });
+                    res.send(data);
+                });
+            else
+                Message.findOne({
+                    board: board,
+                    thread_id: thread_id
+                }, (err, data) => {
+                    if (err) throw err;
+                    delete data.reported;
+                    delete data.delete_password;
+                    res.send(data);
+                });
         });
-        console.log(data);
-        res.send(data);
-      })
-    });
 
     app.route('/api/replies/:board')
-      .post((req, res) => {
+        .post((req, res) => {
             const {
                 board,
                 text,
                 delete_password,
                 thread_id
             } = req.body;
-          if (board === undefined) board = 'general';
+            if (board === undefined) board = 'general';
 
             Message.findOneAndUpdate({
-              _id: thread_id,
-              board: board
+                _id: thread_id,
+                board: board
             }, (err, doc) => {
                 if (err) throw err;
                 doc.bumped_on = new Date();
@@ -83,5 +102,5 @@ module.exports = function(app) {
                 });
                 doc.save();
             });
-      });
+        });
 };
