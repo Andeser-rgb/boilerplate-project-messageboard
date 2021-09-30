@@ -75,7 +75,7 @@ module.exports = function(app) {
                     delete dCopy.delete_password;
                     return dCopy;
                 });
-            res.send(data);
+            res.send(data.slice(0, 10));
         })
         .delete(async (req, res) => {
             const {
@@ -86,7 +86,7 @@ module.exports = function(app) {
 
             let doc = await Message.findOne({
                 board: board,
-                thread_id: thread_id,
+                _id: thread_id,
             });
 
             if(doc == null){
@@ -96,12 +96,13 @@ module.exports = function(app) {
 
             if(doc.delete_password != delete_password)
                 res.send('incorrect password');
-            else
-                Message.deleteOne({
+            else{
+                await Message.deleteOne({
                     board: board,
-                    thread_id: thread_id
+                    _id: thread_id
                 });
-            res.send('success');
+                res.send('success');
+            }
         })
         .put(async (req, res) => {
             const {
@@ -164,7 +165,7 @@ module.exports = function(app) {
 
             let data = await Message.findOne({
                 board: board,
-                thread_id: thread_id
+                _id: thread_id
             }).populate('replies');
 
             if(data == null){
