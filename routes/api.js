@@ -30,10 +30,10 @@ module.exports = function(app) {
     app.route('/api/threads/:board')
         .post((req, res) => {
             let {
-                board,
                 text,
                 delete_password
             } = req.body;
+            let board = req.params.board;
 
             if (board === undefined) board = 'general';
 
